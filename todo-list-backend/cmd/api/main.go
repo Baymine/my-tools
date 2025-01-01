@@ -67,6 +67,11 @@ func getTodos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.Printf("Retrieved %d todos", len(todos))
+	for _, todo := range todos {
+		logger.Printf("Todo: ID=%d, Title=%s, Completed=%v, Priority=%s", todo.ID, todo.Title, todo.Completed, todo.Priority)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(todos)
 }

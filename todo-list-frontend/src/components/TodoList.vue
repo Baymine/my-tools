@@ -57,60 +57,82 @@ export default {
   },
   methods: {
     async fetchTodos() {
+      console.log('Fetching todos...')
       try {
         const response = await axios.get(`${API_URL}/todos`)
+        console.log('Todos fetched successfully:', response.data)
         this.todos = response.data
+        console.log('Updated todos:', this.todos)
       } catch (error) {
         console.error('Error fetching todos:', error)
+        if (error.response) {
+          console.error('Response data:', error.response.data)
+          console.error('Response status:', error.response.status)
+          console.error('Response headers:', error.response.headers)
+        } else if (error.request) {
+          console.error('No response received:', error.request)
+        } else {
+          console.error('Error setting up request:', error.message)
+        }
       }
     },
     async addTodo(title) {
+      console.log('Adding todo:', title)
       try {
         const response = await axios.post(`${API_URL}/todos`, {
           title: title,
           completed: false,
           priority: 'medium'
         })
+        console.log('Todo added successfully:', response.data)
         this.todos.push(response.data)
       } catch (error) {
         console.error('Error adding todo:', error)
       }
     },
     async toggleComplete(todo) {
+      console.log('Toggling todo completion:', todo)
       try {
         await axios.put(`${API_URL}/todos/${todo.id}`, {
           ...todo,
           completed: !todo.completed
         })
         todo.completed = !todo.completed
+        console.log('Todo completion toggled:', todo)
       } catch (error) {
         console.error('Error updating todo:', error)
       }
     },
     async updatePriority(todo, priority) {
+      console.log('Updating todo priority:', todo, priority)
       try {
         await axios.put(`${API_URL}/todos/${todo.id}`, {
           ...todo,
           priority: priority
         })
         todo.priority = priority
+        console.log('Todo priority updated:', todo)
       } catch (error) {
         console.error('Error updating todo priority:', error)
       }
     },
     async removeTodo(todo) {
+      console.log('Removing todo:', todo)
       try {
         await axios.delete(`${API_URL}/todos/${todo.id}`)
         this.todos = this.todos.filter(t => t.id !== todo.id)
+        console.log('Todo removed:', todo)
       } catch (error) {
         console.error('Error removing todo:', error)
       }
     },
     setFilter(filter) {
       this.filter = filter
+      console.log('Filter set to:', filter)
     }
   },
   mounted() {
+    console.log('TodoList component mounted')
     this.fetchTodos()
   }
 }
