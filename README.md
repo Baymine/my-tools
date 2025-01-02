@@ -95,8 +95,8 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 If you have any questions or suggestions, please contact the project maintainer:
 
-- Email: yo***@example.com
-- GitHub: [@yourusername](https://github.com/yourusername)
+- Email: kaihuacao04@gmail.com
+- GitHub: [@Baymine](https://github.com/Baymine)
 
 ---
 
