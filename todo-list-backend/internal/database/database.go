@@ -102,7 +102,7 @@ func GetUserByID(id int) (models.User, error) {
 
 // GetAllTodos 获取指定用户的所有待办事项
 func GetAllTodos(userID int) ([]models.Todo, error) {
-	rows, err := DB.Query("SELECT id, title, completed, priority, user_id, created_at, updated_at FROM todos WHERE user_id = ?", userID)
+	rows, err := DB.Query("SELECT id, title, completed, priority, user_id, created_at, updated_at FROM todos WHERE user_id = ? ORDER BY created_at DESC", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +123,45 @@ func GetAllTodos(userID int) ([]models.Todo, error) {
 	}
 
 	return todos, nil
+}
+
+// GetTodosWithPagination 获取指定用户的待办事项，支持分页
+func GetTodosWithPagination(userID int, page, pageSize int) ([]models.Todo, int, error) {
+	// 获取总记录数
+	var total int
+	err := DB.QueryRow("SELECT COUNT(*) FROM todos WHERE user_id = ?", userID).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 计算偏移量
+	offset := (page - 1) * pageSize
+
+	// 查询分页数据
+	rows, err := DB.Query(
+		"SELECT id, title, completed, priority, user_id, created_at, updated_at FROM todos WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+		userID, pageSize, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var todos []models.Todo
+	for rows.Next() {
+		var todo models.Todo
+		err := rows.Scan(&todo.ID, &todo.Title, &todo.Completed, &todo.Priority, &todo.UserID, &todo.CreatedAt, &todo.UpdatedAt)
+		if err != nil {
+			return nil, 0, err
+		}
+		todos = append(todos, todo)
+	}
+
+	if len(todos) == 0 {
+		return []models.Todo{}, total, nil
+	}
+
+	return todos, total, nil
 }
 
 // CreateTodo 创建待办事项

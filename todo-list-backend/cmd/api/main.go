@@ -177,7 +177,12 @@ func handleTodos(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		getTodos(w, r, userID)
+		// 检查是否请求分页
+		if r.URL.Query().Get("page") != "" {
+			getTodosWithPagination(w, r, userID)
+		} else {
+			getTodos(w, r, userID)
+		}
 	case http.MethodPost:
 		createTodo(w, r, userID)
 	default:
@@ -217,6 +222,51 @@ func getTodos(w http.ResponseWriter, r *http.Request, userID int) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(todos)
+}
+
+func getTodosWithPagination(w http.ResponseWriter, r *http.Request, userID int) {
+	// 解析分页参数
+	pageStr := r.URL.Query().Get("page")
+	pageSizeStr := r.URL.Query().Get("pageSize")
+
+	page := 1
+	pageSize := 10
+
+	if pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+
+	// 获取分页数据
+	todos, total, err := database.GetTodosWithPagination(userID, page, pageSize)
+	if err != nil {
+		logger.Printf("Error getting todos with pagination: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Printf("Retrieved %d todos (page %d of %d) for user %d", len(todos), page, (total+pageSize-1)/pageSize, userID)
+
+	// 构建响应
+	response := map[string]interface{}{
+		"todos": todos,
+		"pagination": map[string]int{
+			"page":       page,
+			"pageSize":   pageSize,
+			"total":      total,
+			"totalPages": (total + pageSize - 1) / pageSize,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func createTodo(w http.ResponseWriter, r *http.Request, userID int) {
