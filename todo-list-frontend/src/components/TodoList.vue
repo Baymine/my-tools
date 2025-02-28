@@ -8,7 +8,10 @@
       </div>
       <TodoForm @add-todo="addTodo" />
       <TodoFilter @filter-change="setFilter" />
-      <ul>
+      
+      <div v-if="loading" class="loading">加载中...</div>
+      
+      <ul v-else-if="sortedTodos.length > 0">
         <TodoItem
           v-for="todo in sortedTodos"
           :key="todo.id"
@@ -18,6 +21,30 @@
           @remove="removeTodo(todo)"
         />
       </ul>
+      
+      <div v-else class="empty-state">
+        没有待办事项，请添加一个新的待办事项
+      </div>
+      
+      <Pagination
+        v-if="usePagination && pagination.totalPages > 0"
+        :current-page="pagination.page"
+        :total-pages="pagination.totalPages"
+        @page-change="changePage"
+      />
+      
+      <div class="pagination-toggle">
+        <label>
+          <input type="checkbox" v-model="usePagination">
+          启用分页 (每页 {{ pageSize }} 项)
+        </label>
+        <select v-if="usePagination" v-model="pageSize" @change="changePageSize">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+        </select>
+      </div>
     </div>
   </div>
 </template>
@@ -27,6 +54,7 @@ import TodoItem from './TodoItem.vue'
 import TodoForm from './TodoForm.vue'
 import TodoFilter from './TodoFilter.vue'
 import LoginForm from './LoginForm.vue'
+import Pagination from './Pagination.vue'
 import axios from 'axios'
 
 const API_URL = 'http://localhost:8081'
@@ -37,14 +65,24 @@ export default {
     TodoItem,
     TodoForm,
     TodoFilter,
-    LoginForm
+    LoginForm,
+    Pagination
   },
   data() {
     return {
       todos: [],
       filter: 'all',
       isAuthenticated: false,
-      user: null
+      user: null,
+      loading: false,
+      usePagination: false,
+      pageSize: 10,
+      pagination: {
+        page: 1,
+        pageSize: 10,
+        total: 0,
+        totalPages: 0
+      }
     }
   },
   computed: {
@@ -121,11 +159,25 @@ export default {
       this.todos = []
     },
     async fetchTodos() {
+      this.loading = true
       console.log('Fetching todos...')
       try {
-        const response = await axios.get(`${API_URL}/todos`)
+        let url = `${API_URL}/todos`
+        
+        if (this.usePagination) {
+          url = `${url}?page=${this.pagination.page}&pageSize=${this.pageSize}`
+        }
+        
+        const response = await axios.get(url)
         console.log('Todos fetched successfully:', response.data)
-        this.todos = response.data
+        
+        if (this.usePagination) {
+          this.todos = response.data.todos
+          this.pagination = response.data.pagination
+        } else {
+          this.todos = response.data
+        }
+        
         console.log('Updated todos:', this.todos)
       } catch (error) {
         console.error('Error fetching todos:', error)
@@ -138,7 +190,18 @@ export default {
         } else {
           console.error('Error setting up request:', error.message)
         }
+      } finally {
+        this.loading = false
       }
+    },
+    changePage(page) {
+      this.pagination.page = page
+      this.fetchTodos()
+    },
+    changePageSize() {
+      this.pagination.page = 1
+      this.pagination.pageSize = this.pageSize
+      this.fetchTodos()
     },
     async addTodo(title) {
       console.log('Adding todo:', title)
@@ -237,5 +300,42 @@ ul {
   list-style-type: none;
   padding: 0;
 }
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  color: #666;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+.pagination-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.pagination-toggle select {
+  margin-left: 10px;
+  padding: 3px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.pagination-toggle input[type="checkbox"] {
+  margin-right: 5px;
+}
 </style>
+
+
 
