@@ -1,17 +1,24 @@
 <template>
-  <div class="todo-list">
-    <TodoForm @add-todo="addTodo" />
-    <TodoFilter @filter-change="setFilter" />
-    <ul>
-      <TodoItem
-        v-for="todo in sortedTodos"
-        :key="todo.id"
-        :todo="todo"
-        @toggle-complete="toggleComplete(todo)"
-        @update-priority="updatePriority(todo, $event)"
-        @remove="removeTodo(todo)"
-      />
-    </ul>
+  <div>
+    <LoginForm v-if="!isAuthenticated" @auth-success="onAuthSuccess" />
+    <div v-else class="todo-list">
+      <div class="user-info">
+        <span>欢迎, {{ user.username }}</span>
+        <button class="btn-logout" @click="logout">退出登录</button>
+      </div>
+      <TodoForm @add-todo="addTodo" />
+      <TodoFilter @filter-change="setFilter" />
+      <ul>
+        <TodoItem
+          v-for="todo in sortedTodos"
+          :key="todo.id"
+          :todo="todo"
+          @toggle-complete="toggleComplete(todo)"
+          @update-priority="updatePriority(todo, $event)"
+          @remove="removeTodo(todo)"
+        />
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -19,6 +26,7 @@
 import TodoItem from './TodoItem.vue'
 import TodoForm from './TodoForm.vue'
 import TodoFilter from './TodoFilter.vue'
+import LoginForm from './LoginForm.vue'
 import axios from 'axios'
 
 const API_URL = 'http://localhost:8081'
@@ -28,12 +36,15 @@ export default {
   components: {
     TodoItem,
     TodoForm,
-    TodoFilter
+    TodoFilter,
+    LoginForm
   },
   data() {
     return {
       todos: [],
-      filter: 'all'
+      filter: 'all',
+      isAuthenticated: false,
+      user: null
     }
   },
   computed: {
@@ -56,6 +67,59 @@ export default {
     }
   },
   methods: {
+    checkAuth() {
+      const token = localStorage.getItem('token')
+      const userStr = localStorage.getItem('user')
+      
+      if (token && userStr) {
+        try {
+          this.user = JSON.parse(userStr)
+          this.isAuthenticated = true
+          this.setupAxiosInterceptors()
+          this.fetchTodos()
+        } catch (e) {
+          console.error('Error parsing user data:', e)
+          this.logout()
+        }
+      }
+    },
+    setupAxiosInterceptors() {
+      // 添加请求拦截器，自动添加认证头
+      axios.interceptors.request.use(
+        config => {
+          const token = localStorage.getItem('token')
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+          }
+          return config
+        },
+        error => {
+          return Promise.reject(error)
+        }
+      )
+      
+      // 添加响应拦截器，处理认证错误
+      axios.interceptors.response.use(
+        response => response,
+        error => {
+          if (error.response && error.response.status === 401) {
+            // 认证失败，清除用户信息并重定向到登录页
+            this.logout()
+          }
+          return Promise.reject(error)
+        }
+      )
+    },
+    onAuthSuccess() {
+      this.checkAuth()
+    },
+    logout() {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      this.isAuthenticated = false
+      this.user = null
+      this.todos = []
+    },
     async fetchTodos() {
       console.log('Fetching todos...')
       try {
@@ -85,7 +149,8 @@ export default {
           priority: 'medium'
         })
         console.log('Todo added successfully:', response.data)
-        this.todos.push(response.data)
+        // 重新获取待办事项列表以获取完整的待办事项对象
+        this.fetchTodos()
       } catch (error) {
         console.error('Error adding todo:', error)
       }
@@ -133,7 +198,7 @@ export default {
   },
   mounted() {
     console.log('TodoList component mounted')
-    this.fetchTodos()
+    this.checkAuth()
   }
 }
 </script>
@@ -146,8 +211,31 @@ export default {
   padding: 20px;
 }
 
+.user-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.btn-logout {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background-color: #d32f2f;
+}
+
 ul {
   list-style-type: none;
   padding: 0;
 }
 </style>
+
